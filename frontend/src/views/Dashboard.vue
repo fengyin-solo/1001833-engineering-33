@@ -35,11 +35,24 @@ import { fetchJson } from '@/api/client'
 
 type Overview = {
   cards: { label: string; value: number }[]
-  modules: { name: string; created: number; pending: number; abnormal: number }[]
+  modules: { name: string; key?: string; created: number; pending: number; abnormal: number }[]
 }
 
 const cards = ref<Overview['cards']>([])
 const moduleRows = ref<Overview['modules']>([])
+
+// 接口不可达时展示归档版运营概览的空骨架：4 张卡片、18 个业务模块，与正常返回结构对齐
+const FALLBACK_CARDS: Overview['cards'] = [
+  { label: '业务模块', value: 0 },
+  { label: '今日新增', value: 0 },
+  { label: '待处理', value: 0 },
+  { label: '异常量', value: 0 },
+]
+const FALLBACK_MODULES: Overview['modules'] = [
+  '管段档案', '检查井', '阀门井室', '泵站设施', '巡查任务', '缺陷登记',
+  '内窥检测', '修复施工', '压力监测', '流量监测', '泄漏排查', '清淤疏浚',
+  '养护材料', '养护机械', '占道许可', '公众诉求', '养护资金', '管网档案',
+].map((name) => ({ name, created: 0, pending: 0, abnormal: 0 }))
 
 onMounted(async () => {
   try {
@@ -47,8 +60,8 @@ onMounted(async () => {
     cards.value = payload.cards
     moduleRows.value = payload.modules
   } catch {
-    cards.value = [{"label": "业务模块", "value": 0}, {"label": "今日新增", "value": 0}]
-    moduleRows.value = [{"name": "管段档案", "created": 0, "pending": 0, "abnormal": 0}, {"name": "检查井", "created": 0, "pending": 0, "abnormal": 0}, {"name": "阀门井室", "created": 0, "pending": 0, "abnormal": 0}, {"name": "泵站设施", "created": 0, "pending": 0, "abnormal": 0}, {"name": "巡查任务", "created": 0, "pending": 0, "abnormal": 0}, {"name": "缺陷登记", "created": 0, "pending": 0, "abnormal": 0}, {"name": "内窥检测", "created": 0, "pending": 0, "abnormal": 0}, {"name": "修复施工", "created": 0, "pending": 0, "abnormal": 0}, {"name": "压力监测", "created": 0, "pending": 0, "abnormal": 0}, {"name": "流量监测", "created": 0, "pending": 0, "abnormal": 0}, {"name": "泄漏排查", "created": 0, "pending": 0, "abnormal": 0}, {"name": "清淤疏浚", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护材料", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护机械", "created": 0, "pending": 0, "abnormal": 0}, {"name": "占道许可", "created": 0, "pending": 0, "abnormal": 0}, {"name": "公众诉求", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护资金", "created": 0, "pending": 0, "abnormal": 0}, {"name": "管网档案", "created": 0, "pending": 0, "abnormal": 0}]
+    cards.value = FALLBACK_CARDS
+    moduleRows.value = FALLBACK_MODULES
   }
 })
 </script>
