@@ -653,3 +653,63 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
   '归档日期': '2026-09-03',
   '档案状态': '管网档案样例3'}]
 }
+
+# 内置数据版次：没有快照文件时直接起服务，概览数据版本显示这个。
+BUILTIN_VERSION = "builtin"
+
+# 归档版次：python -m app.seed 生成快照时写进文件，运营概览的存量数据按这一版回填。
+ARCHIVE_VERSION = "2026.09"
+
+
+def build_snapshot() -> dict[str, Any]:
+    """把内置示例数据整理成可落盘的归档快照（内容确定，重跑结果逐字节一致）。"""
+    return {
+        "version": ARCHIVE_VERSION,
+        "modules": {name: [dict(row) for row in rows] for name, rows in sorted(SEED_ROWS.items())},
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """初始化示例数据：生成归档版快照并自检，失败时非零退出让流水线停下来。"""
+    import argparse
+    import json
+    from pathlib import Path
+
+    from app.config import settings
+
+    parser = argparse.ArgumentParser(description="初始化示例数据（生成归档版快照）")
+    parser.add_argument("--output", default=str(settings.data_path), help="快照输出路径")
+    args = parser.parse_args(argv)
+
+    snapshot = build_snapshot()
+    modules: dict[str, list[dict[str, Any]]] = snapshot["modules"]
+    problems: list[str] = []
+    for name, rows in modules.items():
+        if not rows:
+            problems.append(f"模块 {name} 没有示例记录")
+        for row in rows:
+            for key in ("id", "status", "pending", "abnormal"):
+                if key not in row:
+                    problems.append(f"模块 {name} 的记录缺少字段 {key}")
+    if problems:
+        for problem in problems:
+            print(f"  ✗ {problem}")
+        return 1
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    total = sum(len(rows) for rows in modules.values())
+    pending = sum(1 for rows in modules.values() for row in rows if row.get("pending"))
+    abnormal = sum(1 for rows in modules.values() for row in rows if row.get("abnormal"))
+    print(f"  归档版次：{snapshot['version']}")
+    for name in sorted(modules):
+        print(f"  - {name}: {len(modules[name])} 条")
+    print(f"  业务模块 {len(modules)} 个 / 记录 {total} 条（待处理 {pending}、异常 {abnormal}）")
+    print(f"  已写入 {output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
